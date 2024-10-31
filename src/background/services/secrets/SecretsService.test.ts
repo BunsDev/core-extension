@@ -1509,7 +1509,6 @@ describe('src/background/services/secrets/SecretsService.ts', () => {
 
   describe('addImportedWallet', () => {
     const pubKeyBuffer = Buffer.from('0x111', 'hex');
-    const isMainnet = false;
 
     beforeEach(() => {
       (networkService.isMainnet as jest.Mock).mockReturnValue(false);
@@ -1532,7 +1531,7 @@ describe('src/background/services/secrets/SecretsService.ts', () => {
           importType: ImportType.PRIVATE_KEY,
           data: 'privateKey',
         },
-        isMainnet
+        networkService
       );
 
       expect(result).toStrictEqual({
@@ -1571,7 +1570,7 @@ describe('src/background/services/secrets/SecretsService.ts', () => {
             importType: ImportType.PRIVATE_KEY,
             data: 'privateKey',
           },
-          isMainnet
+          networkService
         )
       ).rejects.toThrow('Error while calculating addresses');
     });
@@ -1591,7 +1590,7 @@ describe('src/background/services/secrets/SecretsService.ts', () => {
             importType: ImportType.PRIVATE_KEY,
             data: 'privateKey',
           },
-          isMainnet
+          networkService
         )
       ).rejects.toThrow('Error while calculating addresses');
     });
@@ -1611,7 +1610,7 @@ describe('src/background/services/secrets/SecretsService.ts', () => {
             importType: ImportType.PRIVATE_KEY,
             data: 'privateKey',
           },
-          isMainnet
+          networkService
         )
       ).rejects.toThrow('Error while calculating addresses');
     });
@@ -1621,7 +1620,7 @@ describe('src/background/services/secrets/SecretsService.ts', () => {
     const pubKeyBuffer = Buffer.from('0x111', 'hex');
 
     beforeEach(() => {
-      (networkService.isMainnet as jest.Mock).mockReturnValue(false);
+      (networkService.isMainnet as jest.Mock).mockReturnValue(true);
       (getPublicKeyFromPrivateKey as jest.Mock).mockReturnValue(pubKeyBuffer);
       (getEvmAddressFromPubKey as jest.Mock).mockReturnValue('0x1');
       (getBtcAddressFromPubKey as jest.Mock).mockReturnValue('0x2');
@@ -1634,7 +1633,7 @@ describe('src/background/services/secrets/SecretsService.ts', () => {
       );
 
       await expect(
-        secretsService.getImportedAddresses('id', true)
+        secretsService.getImportedAddresses('id', networkService)
       ).rejects.toThrow('No secrets found for imported account');
     });
 
@@ -1645,11 +1644,12 @@ describe('src/background/services/secrets/SecretsService.ts', () => {
       );
 
       await expect(
-        secretsService.getImportedAddresses('id', true)
+        secretsService.getImportedAddresses('id', networkService)
       ).rejects.toThrow('Unsupported import type');
     });
 
     it('throws if addresses are missing', async () => {
+      (networkService.isMainnet as jest.Mock).mockReturnValue(false);
       secretsService.getImportedAccountSecrets = jest.fn();
       (secretsService.getImportedAccountSecrets as jest.Mock).mockResolvedValue(
         { secretType: SecretType.PrivateKey, secret: 'secret' }
@@ -1658,17 +1658,21 @@ describe('src/background/services/secrets/SecretsService.ts', () => {
       (getBtcAddressFromPubKey as jest.Mock).mockReturnValueOnce('');
 
       await expect(
-        secretsService.getImportedAddresses('id', false)
+        secretsService.getImportedAddresses('id', networkService)
       ).rejects.toThrow('Missing address');
     });
 
     it('returns the addresses for PRIVATE_KEY correctly', async () => {
+      (networkService.isMainnet as jest.Mock).mockReturnValue(false);
       secretsService.getImportedAccountSecrets = jest.fn();
       (secretsService.getImportedAccountSecrets as jest.Mock).mockResolvedValue(
         { secretType: SecretType.PrivateKey, secret: 'secret' }
       );
 
-      const result = await secretsService.getImportedAddresses('id', false);
+      const result = await secretsService.getImportedAddresses(
+        'id',
+        networkService
+      );
 
       expect(result).toStrictEqual({
         addressBTC: '0x2',
